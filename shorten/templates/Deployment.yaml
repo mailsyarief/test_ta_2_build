@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: app
+spec:
+    selector:
+        matchLabels:
+            app: app
+    template:
+        metadata:
+            labels:
+                app: app
+        spec:
+            containers:
+            - name: c-shorten
+              image: mailsyarief/laravel_shorten:1
+              ports:
+              - containerPort: 80
+              volumeMounts:
+              - name: config
+                mountPath: /var/www/html/.env
+                subPath: .env
+              - name: public
+                mountPath: /var/www/html/public/storage
+                subPath: storage
+            volumes:
+            - name: public
+              persistentVolumeClaim:
+                claimName: app-public
+            - name: config
+              configMap:
+                name: app-config
+                items:
+                - key: config
+                  path: .env
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: pma
+spec:
+    selector:
+        matchLabels:
+            app: pma
+    template:
+        metadata:
+            labels:
+                app: pma
+        spec:
+            containers:
+            - name: c-pma
+              image: phpmyadmin/phpmyadmin
+              ports:
+              - containerPort: 80
+              env:
+              - name: PMA_HOST
+                value: db
+    
+---
+    
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: db
+spec:
+    selector:
+        matchLabels:
+            app: db
+    template:
+        metadata:
+            labels:
+                app: db
+        spec:
+            volumes:
+            - name: db-storage
+              persistentVolumeClaim:
+                claimName: db-storage
+            containers:
+            - name: c-mariadb
+              image: mariadb
+              volumeMounts:
+              - name: db-storage
+                mountPath: /var/lib/mysql
+                subPath: mysql
+              ports:
+              - containerPort: 3306
+              env:
+              - name: MYSQL_DATABASE
+                value: laravel
+              - name: MYSQL_ROOT_PASSWORD
+                value: root
